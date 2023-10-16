@@ -158,7 +158,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
 
         # Technically these observation lengths are different between v1 and v2,
         # but we handle that elsewhere and just stick with v2 numbers here
-        self._obs_obj_max_len = 14
+        self._obs_obj_max_len = 21
 
         self._set_task_called = False
 
@@ -362,7 +362,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         Note: The goal's position is *not* included in this.
 
         Returns:
-            np.ndarray: The flat observation array (18 elements)
+            np.ndarray: The flat observation array (25 elements)
 
         """
 
@@ -524,8 +524,8 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
     def reset(self, seed=None, options=None):
         self.curr_path_length = 0
         obs, info = super().reset()
-        self._prev_obs = obs[:18].copy()
-        obs[18:36] = self._prev_obs
+        self._prev_obs = obs[:25].copy()
+        obs[25:50] = self._prev_obs
         obs = np.float64(obs)
         return obs, info
 

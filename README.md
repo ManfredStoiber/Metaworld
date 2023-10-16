@@ -1,4 +1,4 @@
-# Meta-World
+# Fork of Meta-World with additional own environments
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/Farama-Foundation/metaworld/blob/master/LICENSE)
 ![Build Status](https://github.com/Farama-Foundation/Metaworld/workflows/MetaWorld%20CI/badge.svg)
 
