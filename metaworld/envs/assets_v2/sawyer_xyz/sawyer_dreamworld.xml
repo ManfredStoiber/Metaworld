@@ -14,9 +14,14 @@
         <include file="../objects/assets/xyz_base.xml"/>
 
         <body name="coffee_machine" pos="0 .9 0">
+          <site name="test" pos="0.3 -0.32 0.09" size="0.01" rgba="1 1 0 1"/>
           <include file="../objects/assets/coffeemachine.xml"/>
         </body>
-        <site name="mug_goal" pos="0 0.6 0.02" size="0.01" rgba="0 1 0 1"/>
+        <!--<site name="mug_goal" pos="0 0.6 0.02" size="0.01" rgba="0 1 0 1"/>-->
+
+        <site name="goal" pos="0. 0.74 0.05" size="0.02" rgba="0 0.8 0 1"/>
+
+
 
         <body name="drawer" pos="0.3 0.9 .0">
             <body childclass="drawer_base">

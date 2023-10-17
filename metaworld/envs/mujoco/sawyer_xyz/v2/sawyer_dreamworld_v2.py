@@ -18,7 +18,7 @@ class SawyerDreamworldEnvV2(SawyerXYZEnv):
         hand_low = (-0.5, 0.4, 0.05)
         hand_high = (0.5, 1.0, 0.5)
 
-        # range of (mug?) position # TODO
+        # range of coffee machine position and base for other the objects
         obj_low = (-0.1, 0.8, -0.001)
         obj_high = (0.1, 0.9, +0.001)
         # goal_low[3] would be .1, but objects aren't fully initialized until a
@@ -81,7 +81,7 @@ class SawyerDreamworldEnvV2(SawyerXYZEnv):
 
     @property
     def _target_site_config(self):
-        return [("coffee_goal", self._target_pos)]
+        return [("goal", self._target_pos)]
 
     def _get_id_main_object(self):
         return None
@@ -114,18 +114,22 @@ class SawyerDreamworldEnvV2(SawyerXYZEnv):
     def reset_model(self):
         self._reset_hand()
 
-        self.obj_init_pos = self._get_state_rand_vec() # random init position of mug and base for other objects
+        self.obj_init_pos = self._get_state_rand_vec() # random init position of coffee machine and base for other objects
         self.model.body_pos[
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "coffee_machine")
         ] = self.obj_init_pos
 
         # Set _target_pos to current drawer position (closed)
+        self.model.body_pos[
+            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "drawer")
+        ] = self.obj_init_pos
         self._target_pos = (self.obj_init_pos
                             + np.array([0.3, 0, 0]) # offset of drawer relative to coffee machine
-                            + np.array([0.0, -0.16, 0.09])) # offset of drawer_link relative to drawer # TODO: check if correct
+                            + np.array([0.0, -0.16, 0.09])) # offset of drawer_link relative to drawer
 
         pos_mug = self.obj_init_pos + np.array([0.0, -0.22, 0.0])
         self._set_obj_xyz(pos_mug) # set mug position and open drawer
+        self.obj_init_pos = self._get_pos_objects()[2] # set obj_init_pos as initial position of drawer_link (like in drawer-close env)
 
         # set button target
         #pos_button = self.obj_init_pos + np.array([0.0, -0.22, 0.3])
@@ -172,7 +176,7 @@ class SawyerDreamworldEnvV2(SawyerXYZEnv):
 
         target_to_obj = obj - target
         target_to_obj = np.linalg.norm(target_to_obj)
-        target_to_obj_init = self.obj_init_pos + np.array([0.3, 0, 0]) - target
+        target_to_obj_init = self.obj_init_pos - target
         target_to_obj_init = np.linalg.norm(target_to_obj_init)
 
         in_place = reward_utils.tolerance(
@@ -184,7 +188,7 @@ class SawyerDreamworldEnvV2(SawyerXYZEnv):
 
         handle_reach_radius = 0.005
         tcp_to_obj = np.linalg.norm(obj - tcp)
-        tcp_to_obj_init = np.linalg.norm(self.obj_init_pos + np.array([0.3, 0, 0]) - self.init_tcp)
+        tcp_to_obj_init = np.linalg.norm(self.obj_init_pos - self.init_tcp)
         reach = reward_utils.tolerance(
             tcp_to_obj,
             bounds=(0, handle_reach_radius),
