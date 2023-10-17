@@ -11,12 +11,14 @@ from metaworld.envs.mujoco.sawyer_xyz.sawyer_xyz_env import (
 )
 
 
-class SawyerDreamworldButtonEnvV2(SawyerXYZEnv):
+class SawyerDreamworldEnvV2(SawyerXYZEnv):
     def __init__(self, tasks=None, render_mode=None):
         self.max_dist = 0.03
 
         hand_low = (-0.5, 0.4, 0.05)
         hand_high = (0.5, 1.0, 0.5)
+
+        # range of (mug?) position # TODO
         obj_low = (-0.1, 0.8, -0.001)
         obj_high = (0.1, 0.9, +0.001)
         # goal_low[3] would be .1, but objects aren't fully initialized until a
@@ -52,7 +54,7 @@ class SawyerDreamworldButtonEnvV2(SawyerXYZEnv):
 
     @property
     def model_name(self):
-        return full_v2_path_for("sawyer_xyz/sawyer_coffee.xml")
+        return full_v2_path_for("sawyer_xyz/sawyer_dreamworld.xml")
 
     @_assert_task_is_set
     def evaluate_state(self, obs, action):
@@ -86,7 +88,7 @@ class SawyerDreamworldButtonEnvV2(SawyerXYZEnv):
 
     def _get_pos_objects(self):
         return np.hstack(
-            (self._get_site_pos("buttonStart"), self.get_body_com("obj").copy(), self.get_body_com("drawer_link") + np.array([0.0, -0.16, 0.05]))
+            (self._get_site_pos("buttonStart"), self.get_body_com("mug_obj").copy(), self.get_body_com("drawer_link") + np.array([0.0, -0.16, 0.05]))
         )
 
     def _get_quat_objects(self):
@@ -99,26 +101,40 @@ class SawyerDreamworldButtonEnvV2(SawyerXYZEnv):
     def _set_obj_xyz(self, pos):
         qpos = self.data.qpos.flatten()
         qvel = self.data.qvel.flatten()
+
+        # set mug position
         qpos[0:3] = pos.copy()
         qvel[9:15] = 0
+
+        # set drawer position (open drawer)
+        qpos[self.model.jnt_qposadr[self.model.body_jntadr[mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "drawer_link")]]] = -0.15
+
         self.set_state(qpos, qvel)
 
     def reset_model(self):
         self._reset_hand()
 
-        self.obj_init_pos = self._get_state_rand_vec()
+        self.obj_init_pos = self._get_state_rand_vec() # random init position of mug and base for other objects
         self.model.body_pos[
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "coffee_machine")
         ] = self.obj_init_pos
 
-        pos_mug = self.obj_init_pos + np.array([0.0, -0.22, 0.0])
-        self._set_obj_xyz(pos_mug)
+        # Set _target_pos to current drawer position (closed)
+        self._target_pos = (self.obj_init_pos
+                            + np.array([0.3, 0, 0]) # offset of drawer relative to coffee machine
+                            + np.array([0.0, -0.16, 0.09])) # offset of drawer_link relative to drawer # TODO: check if correct
 
-        pos_button = self.obj_init_pos + np.array([0.0, -0.22, 0.3])
-        self._target_pos = pos_button + np.array([0.0, self.max_dist, 0.0])
+        pos_mug = self.obj_init_pos + np.array([0.0, -0.22, 0.0])
+        self._set_obj_xyz(pos_mug) # set mug position and open drawer
+
+        # set button target
+        #pos_button = self.obj_init_pos + np.array([0.0, -0.22, 0.3])
+        #self._target_pos = pos_button + np.array([0.0, self.max_dist, 0.0])
+
 
         return self._get_obs()
 
+    '''
     def compute_reward(self, action, obs):
         del action
         obj = obs[4:7]
@@ -147,23 +163,64 @@ class SawyerDreamworldButtonEnvV2(SawyerXYZEnv):
             reward += 8 * button_pressed
 
         return (reward, tcp_to_obj, obs[3], obj_to_target, near_button, button_pressed)
+    '''
+    def compute_reward(self, action, obs):
+        obj = obs[18:21]
+
+        tcp = self.tcp_center
+        target = self._target_pos.copy()
+
+        target_to_obj = obj - target
+        target_to_obj = np.linalg.norm(target_to_obj)
+        target_to_obj_init = self.obj_init_pos + np.array([0.3, 0, 0]) - target
+        target_to_obj_init = np.linalg.norm(target_to_obj_init)
+
+        in_place = reward_utils.tolerance(
+            target_to_obj,
+            bounds=(0, self.TARGET_RADIUS),
+            margin=abs(target_to_obj_init - self.TARGET_RADIUS),
+            sigmoid="long_tail",
+        )
+
+        handle_reach_radius = 0.005
+        tcp_to_obj = np.linalg.norm(obj - tcp)
+        tcp_to_obj_init = np.linalg.norm(self.obj_init_pos + np.array([0.3, 0, 0]) - self.init_tcp)
+        reach = reward_utils.tolerance(
+            tcp_to_obj,
+            bounds=(0, handle_reach_radius),
+            margin=abs(tcp_to_obj_init - handle_reach_radius),
+            sigmoid="gaussian",
+        )
+        gripper_closed = min(max(0, action[-1]), 1)
+
+        reach = reward_utils.hamacher_product(reach, gripper_closed)
+        tcp_opened = 0
+        object_grasped = reach
+
+        reward = reward_utils.hamacher_product(reach, in_place)
+        if target_to_obj <= self.TARGET_RADIUS + 0.015:
+            reward = 1.0
+
+        reward *= 10
+
+        return (reward, tcp_to_obj, tcp_opened, target_to_obj, object_grasped, in_place)
 
 
-class TrainDreamworldButtonv2(SawyerDreamworldButtonEnvV2):
+class TrainDreamworldv2(SawyerDreamworldEnvV2):
     tasks = None
 
     def __init__(self):
-        SawyerDreamworldButtonEnvV2.__init__(self, self.tasks)
+        SawyerDreamworldEnvV2.__init__(self, self.tasks)
 
     def reset(self, seed=None, options=None):
         return super().reset(seed=seed, options=options)
 
 
-class TestDreamworldButtonv2(SawyerDreamworldButtonEnvV2):
+class TestDreamworldv2(SawyerDreamworldEnvV2):
     tasks = None
 
     def __init__(self):
-        SawyerDreamworldButtonEnvV2.__init__(self, self.tasks)
+        SawyerDreamworldEnvV2.__init__(self, self.tasks)
 
     def reset(self, seed=None, options=None):
         return super().reset(seed=seed, options=options)

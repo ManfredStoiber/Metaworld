@@ -93,10 +93,10 @@ from metaworld.envs.mujoco.sawyer_xyz.v2.sawyer_drawer_open_v2 import (
     TestDrawerOpenv2,
     TrainDrawerOpenv2,
 )
-from metaworld.envs.mujoco.sawyer_xyz.v2.sawyer_dreamworld_button_v2 import (
-    SawyerDreamworldButtonEnvV2,
-    TestDreamworldButtonv2,
-    TrainDreamworldButtonv2,
+from metaworld.envs.mujoco.sawyer_xyz.v2.sawyer_dreamworld_v2 import (
+    SawyerDreamworldEnvV2,
+    TestDreamworldv2,
+    TrainDreamworldv2,
 )
 from metaworld.envs.mujoco.sawyer_xyz.v2.sawyer_faucet_close_v2 import (
     SawyerFaucetCloseEnvV2,

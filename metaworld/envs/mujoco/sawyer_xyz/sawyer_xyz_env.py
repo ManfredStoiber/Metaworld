@@ -421,7 +421,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
 
     @property
     def sawyer_observation_space(self):
-        obs_obj_max_len = 14
+        obs_obj_max_len = 21
         obj_low = np.full(obs_obj_max_len, -np.inf, dtype=np.float64)
         obj_high = np.full(obs_obj_max_len, +np.inf, dtype=np.float64)
         goal_low = np.zeros(3) if self._partially_observable else self.goal_space.low
